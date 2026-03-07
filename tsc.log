@@ -1,0 +1,8 @@
+﻿.next/types/app/auth/page.ts(2,24): error TS2306: File 'C:/Users/shyam/OneDrive/Documents/projects/trustlayer/trustlayer/src/app/auth/page.jsx' is not a module.
+.next/types/app/auth/page.ts(5,29): error TS2306: File 'C:/Users/shyam/OneDrive/Documents/projects/trustlayer/trustlayer/src/app/auth/page.jsx' is not a module.
+.next/types/app/credentials/page.ts(2,24): error TS2306: File 'C:/Users/shyam/OneDrive/Documents/projects/trustlayer/trustlayer/src/app/credentials/page.jsx' is not a module.
+.next/types/app/credentials/page.ts(5,29): error TS2306: File 'C:/Users/shyam/OneDrive/Documents/projects/trustlayer/trustlayer/src/app/credentials/page.jsx' is not a module.
+.next/types/app/dashboard/page.ts(2,24): error TS2306: File 'C:/Users/shyam/OneDrive/Documents/projects/trustlayer/trustlayer/src/app/dashboard/page.jsx' is not a module.
+.next/types/app/dashboard/page.ts(5,29): error TS2306: File 'C:/Users/shyam/OneDrive/Documents/projects/trustlayer/trustlayer/src/app/dashboard/page.jsx' is not a module.
+.next/types/app/verify/page.ts(2,24): error TS2306: File 'C:/Users/shyam/OneDrive/Documents/projects/trustlayer/trustlayer/src/app/verify/page.jsx' is not a module.
+.next/types/app/verify/page.ts(5,29): error TS2306: File 'C:/Users/shyam/OneDrive/Documents/projects/trustlayer/trustlayer/src/app/verify/page.jsx' is not a module.
