@@ -1,0 +1,61 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  walletAddress String    @unique
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // A user can be an employer or a freelancer on multiple contracts
+  employerContracts   Contract[] @relation("EmployerContracts")
+  freelancerContracts Contract[] @relation("FreelancerContracts")
+  
+  profile Profile?
+}
+
+model Profile {
+  id             String    @id @default(uuid())
+  userId         String    @unique
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  handle         String?   @unique
+  bio            String?   @db.Text
+  isFreelancer   Boolean   @default(false)
+  
+  // ZKP Verified Credentials Data
+  githubVerified Boolean   @default(false)
+  upworkVerified Boolean   @default(false)
+}
+
+model Contract {
+  id             String    @id @default(uuid())
+  title          String
+  description    String    @db.Text
+  milestoneAmount Float
+  totalAmount    Float
+  deadline       DateTime
+  
+  // Contract States: DRAFT, ACTIVE (50% locked), COMPLETED (100% released), ABANDONED, DISPUTED
+  status         String    @default("DRAFT")
+
+  employerId     String
+  employer       User      @relation("EmployerContracts", fields: [employerId], references: [id])
+  
+  freelancerId   String?
+  freelancer     User?     @relation("FreelancerContracts", fields: [freelancerId], references: [id])
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}

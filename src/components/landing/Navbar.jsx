@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { Shield } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { useSession, signIn, signOut } from "next-auth/react";
+import { useWeb3Auth } from "@/components/AuthProvider";
 import {
   Dialog,
   DialogContent,
@@ -15,22 +15,24 @@ import {
 } from "@/components/ui/dialog";
 
 const Navbar = () => {
-  const { data: session } = useSession();
+  const { login, logout, isConnected, address } = useWeb3Auth();
 
   const AuthButtons = () => (
     <div className="flex flex-col gap-4 py-4 items-center">
+      <p className="text-sm text-center text-muted-foreground mb-2 px-2">
+        TrustLayer does not use a traditional login system. We use <strong>Web3Auth</strong> to automatically generate a secure Polygon crypto wallet for you, giving you full control of your Decentralized Identity.
+      </p>
       <Button
-        onClick={() => signIn("google")}
-        className="w-full max-w-sm flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+        onClick={login}
+        className="w-full max-w-sm flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 transition-all"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 48 48" className="fill-current">
-          <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
-          <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
-          <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
-          <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
-        </svg>
-        Continue with Google
+        <Shield className="h-4 w-4" />
+        Connect Web3 Identity
       </Button>
+      <div className="flex items-center gap-1 text-xs text-muted-foreground opacity-60 mt-2">
+        <span>Powered by</span>
+        <span className="font-semibold">Web3Auth</span>
+      </div>
     </div>
   );
 
@@ -46,7 +48,7 @@ const Navbar = () => {
         <div className="flex items-center gap-2">
           <Shield className="h-7 w-7 text-primary" />
           <span className="font-display text-xl font-bold text-foreground">
-            Trust<span className="text-primary">Chain</span>
+            Trust<span className="text-primary">Layer</span>
           </span>
         </div>
 
@@ -68,15 +70,18 @@ const Navbar = () => {
 
         {/* Actions */}
         <div className="flex items-center gap-3">
-          {session ? (
+          {isConnected ? (
             <>
+              <div className="hidden md:flex items-center mr-2 text-xs text-muted-foreground bg-secondary px-3 py-1.5 rounded-full">
+                {address.substring(0, 6)}...{address.substring(address.length - 4)}
+              </div>
               <Link href="/dashboard">
                 <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
                   Dashboard
                 </Button>
               </Link>
-              <Button size="sm" onClick={() => signOut()} variant="secondary">
-                Sign Out
+              <Button size="sm" onClick={logout} variant="secondary">
+                Disconnect
               </Button>
             </>
           ) : (
@@ -94,7 +99,7 @@ const Navbar = () => {
                 <DialogHeader>
                   <DialogTitle className="text-center text-2xl">Welcome to TrustLayer</DialogTitle>
                   <DialogDescription className="text-center">
-                    Sign in or create a new account to continue.
+                    Sign in with Google to create your secure Web3 identity.
                   </DialogDescription>
                 </DialogHeader>
                 <AuthButtons />
@@ -102,7 +107,7 @@ const Navbar = () => {
             </Dialog>
           )}
 
-          {!session && (
+          {!isConnected && (
             <Dialog>
               <DialogTrigger asChild>
                 <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90">
