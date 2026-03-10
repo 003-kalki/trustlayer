@@ -1,0 +1,16 @@
+{
+  "name": "trustlayer-contracts",
+  "version": "1.0.0",
+  "description": "Hardhat V2 workspace",
+  "private": true,
+  "scripts": {
+    "test": "hardhat test"
+  },
+  "devDependencies": {
+    "chai": "^6.2.2",
+    "ethers": "^6.16.0",
+    "ganache": "^7.9.2",
+    "mocha": "^11.7.5",
+    "solc": "^0.8.34"
+  }
+}

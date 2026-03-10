@@ -1,0 +1,11 @@
+{
+  "name": "trustlayer-web3",
+  "version": "1.0.0",
+  "description": "Hardhat workspace for Trustlayer",
+  "private": true,
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "dotenv": "^17.3.1",
+    "hardhat": "^2.22.15"
+  }
+}
