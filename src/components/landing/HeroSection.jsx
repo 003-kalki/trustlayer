@@ -42,8 +42,9 @@ const HeroSection = () => {
             transition={{ duration: 0.7, delay: 0.2 }}
             className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground md:text-xl"
           >
-            A decentralized trust layer for unregulated freelance markets. Verify credentials,
-            secure deals, and build reputation — without sharing your personal data.
+            A decentralized trust layer for unregulated freelance markets. Built for Web2 and
+            Web3 development, AI automation, verified credentials, secure deals, and portable
+            reputation without sharing your personal data.
           </motion.p>
 
           <motion.div
@@ -72,7 +73,7 @@ const HeroSection = () => {
             {[
               { value: "Zero", label: "Personal Data Shared" },
               { value: "100%", label: "On-Chain Verification" },
-              { value: "∞", label: "Portable Credentials" },
+              { value: "Infinity", label: "Portable Credentials" },
             ].map((stat) => (
               <div key={stat.label}>
                 <div className="font-display text-3xl font-bold text-primary md:text-4xl">

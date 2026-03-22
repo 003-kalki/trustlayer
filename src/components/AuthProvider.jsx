@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { Web3Auth } from "@web3auth/modal";
 import { CHAIN_NAMESPACES, WEB3AUTH_NETWORK } from "@web3auth/base";
 import { EthereumPrivateKeyProvider } from "@web3auth/ethereum-provider";
+import { ethers } from "ethers";
 
 // Polygon Amoy Testnet Configuration
 const chainConfig = {
@@ -32,6 +33,7 @@ const web3auth = new Web3Auth({
 export const Web3AuthContext = createContext({
     web3auth: null,
     provider: null,
+    ethersProvider: null,
     login: async () => { },
     logout: async () => { },
     address: "",
@@ -42,6 +44,7 @@ export const useWeb3Auth = () => useContext(Web3AuthContext);
 
 export default function AuthProvider({ children }) {
     const [provider, setProvider] = useState(null);
+    const [ethersProvider, setEthersProvider] = useState(null);
     const [address, setAddress] = useState("");
     const [isConnected, setIsConnected] = useState(false);
 
@@ -50,7 +53,8 @@ export default function AuthProvider({ children }) {
             try {
                 await web3auth.initModal();
                 setProvider(web3auth.provider);
-                if (web3auth.connected) {
+                if (web3auth.connected && web3auth.provider) {
+                    setEthersProvider(new ethers.BrowserProvider(web3auth.provider));
                     setIsConnected(true);
                     getAccounts();
                 }
@@ -80,6 +84,7 @@ export default function AuthProvider({ children }) {
         try {
             const web3authProvider = await web3auth.connect();
             setProvider(web3authProvider);
+            setEthersProvider(new ethers.BrowserProvider(web3authProvider));
             setIsConnected(true);
             await getAccounts();
         } catch (error) {
@@ -91,6 +96,7 @@ export default function AuthProvider({ children }) {
         try {
             await web3auth.logout();
             setProvider(null);
+            setEthersProvider(null);
             setAddress("");
             setIsConnected(false);
         } catch (error) {
@@ -103,6 +109,7 @@ export default function AuthProvider({ children }) {
             value={{
                 web3auth,
                 provider,
+                ethersProvider,
                 login,
                 logout,
                 address,

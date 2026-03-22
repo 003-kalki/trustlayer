@@ -53,19 +53,10 @@ const Navbar = () => {
         </div>
 
         {/* Desktop nav links */}
-        <div className="hidden items-center gap-8 md:flex">
-          {["How It Works", "Features", "Roadmap"].map((item) => {
-            const href = `#${item.toLowerCase().replace(/\s/g, "-")}`;
-            return (
-              <Link
-                key={item}
-                href={href}
-                className="text-sm text-muted-foreground transition-colors hover:text-primary"
-              >
-                {item}
-              </Link>
-            );
-          })}
+        <div className="hidden items-center gap-8 md:flex md:mr-4">
+          <Link href="/how-it-works" className="text-sm text-muted-foreground transition-colors hover:text-primary">How It Works</Link>
+          <Link href="/#features" className="text-sm text-muted-foreground transition-colors hover:text-primary">Features</Link>
+          <Link href="/#roadmap" className="text-sm text-muted-foreground transition-colors hover:text-primary">Roadmap</Link>
         </div>
 
         {/* Actions */}
