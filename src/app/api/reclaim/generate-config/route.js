@@ -38,8 +38,8 @@ export async function POST(req) {
             reclaimClientJson: reclaimClient.toJsonString()
         });
         
-    } catch (e) {
-        console.error("Reclaim Signature Initialization Error:", e);
-        return NextResponse.json({ error: "Failed generating Zero-Knowledge Context", details: e.message }, { status: 500 });
+    } catch (error) {
+        console.error("Reclaim signature initialization error:", error);
+        return NextResponse.json({ error: "Failed generating Reclaim verification request" }, { status: 500 });
     }
 }

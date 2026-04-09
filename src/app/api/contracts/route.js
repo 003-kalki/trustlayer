@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { db, getDatabaseErrorMessage } from "@/lib/db";
 
 const STATUS_TRANSITIONS = new Set([
   "PENDING_ACCEPTANCE",
@@ -62,6 +62,25 @@ function mapContract(row, viewerWalletAddress) {
     freelancerWalletAddress: row.freelancerWalletAddress,
     isEmployer: Boolean(isEmployer),
   };
+}
+
+async function fetchContractRecord(whereClause, params, viewerWalletAddress) {
+  const [rows] = await db.query(
+    `
+      SELECT
+        c.*,
+        employer.walletAddress AS employerWalletAddress,
+        freelancer.walletAddress AS freelancerWalletAddress
+      FROM \`contract\` c
+      INNER JOIN \`user\` employer ON employer.id = c.employerId
+      LEFT JOIN \`user\` freelancer ON freelancer.id = c.freelancerId
+      WHERE ${whereClause}
+      LIMIT 1
+    `,
+    params
+  );
+
+  return rows[0] ? mapContract(rows[0], viewerWalletAddress) : null;
 }
 
 async function ensureUserWithProfile(walletAddress) {
@@ -136,11 +155,48 @@ export async function POST(req) {
       return NextResponse.json({ error: "Missing core transaction parameters" }, { status: 400 });
     }
 
+    const normalizedWeb3JobId = web3JobId.toString();
     const employerId = await ensureUserWithProfile(employerAddress);
     const freelancerId = await ensureUserWithProfile(freelancerAddress);
-    const contractId = crypto.randomUUID();
     const contractColumns = await getContractColumns();
+    const [existingRows] = await db.query(
+      "SELECT id FROM `contract` WHERE web3JobId = ? LIMIT 1",
+      [normalizedWeb3JobId]
+    );
+    const existingContractId = existingRows[0]?.id;
 
+    if (existingContractId) {
+      await db.query(
+        `
+          UPDATE \`contract\`
+          SET
+            title = ?,
+            description = ?,
+            milestoneAmount = ?,
+            totalAmount = ?,
+            deadline = ?,
+            employerId = ?,
+            freelancerId = ?,
+            updatedAt = NOW()
+          WHERE id = ?
+        `,
+        [
+          title || "TrustLayer Escrow Agreement",
+          description || "Escrow created through TrustLayer.",
+          Number(milestoneAmount || totalAmount / 2),
+          Number(totalAmount),
+          deadline ? new Date(deadline) : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+          employerId,
+          freelancerId,
+          existingContractId,
+        ]
+      );
+
+      const contract = await fetchContractRecord("c.id = ?", [existingContractId], employerAddress);
+      return NextResponse.json({ contract }, { status: 200 });
+    }
+
+    const contractId = crypto.randomUUID();
     const insertColumns = [
       "id",
       "title",
@@ -175,49 +231,41 @@ export async function POST(req) {
       "?",
     ].filter(Boolean);
 
-    const params = [
-      contractId,
-      title || "TrustLayer Escrow Agreement",
-      description || "Escrow created through TrustLayer.",
-      Number(milestoneAmount || totalAmount / 2),
-      Number(totalAmount),
-      deadline ? new Date(deadline) : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-      contractColumns.has("fundedAt") ? "FUNDED" : "ACTIVE",
-      employerId,
-      freelancerId,
-      web3JobId.toString(),
-    ];
+    try {
+      await db.query(
+        `
+          INSERT INTO \`contract\` (${insertColumns.join(", ")})
+          VALUES (${insertValues.join(", ")})
+        `,
+        [
+          contractId,
+          title || "TrustLayer Escrow Agreement",
+          description || "Escrow created through TrustLayer.",
+          Number(milestoneAmount || totalAmount / 2),
+          Number(totalAmount),
+          deadline ? new Date(deadline) : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+          contractColumns.has("fundedAt") ? "FUNDED" : "ACTIVE",
+          employerId,
+          freelancerId,
+          normalizedWeb3JobId,
+        ]
+      );
+    } catch (error) {
+      if (error.code === "ER_DUP_ENTRY") {
+        const existingContract = await fetchContractRecord("c.web3JobId = ?", [normalizedWeb3JobId], employerAddress);
+        if (existingContract) {
+          return NextResponse.json({ contract: existingContract }, { status: 200 });
+        }
+      }
 
-    await db.query(
-      `
-        INSERT INTO \`contract\` (${insertColumns.join(", ")})
-        VALUES (${insertValues.join(", ")})
-      `,
-      params
-    );
+      throw error;
+    }
 
-    const [rows] = await db.query(
-      `
-        SELECT
-          c.*,
-          employer.walletAddress AS employerWalletAddress,
-          freelancer.walletAddress AS freelancerWalletAddress
-        FROM \`contract\` c
-        INNER JOIN \`user\` employer ON employer.id = c.employerId
-        LEFT JOIN \`user\` freelancer ON freelancer.id = c.freelancerId
-        WHERE c.id = ?
-        LIMIT 1
-      `,
-      [contractId]
-    );
-
-    return NextResponse.json(
-      { contract: mapContract(rows[0], employerAddress) },
-      { status: 200 }
-    );
+    const contract = await fetchContractRecord("c.id = ?", [contractId], employerAddress);
+    return NextResponse.json({ contract }, { status: 200 });
   } catch (error) {
     console.error("Error committing contract metadata:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({ error: getDatabaseErrorMessage(error) }, { status: 500 });
   }
 }
 
@@ -278,17 +326,17 @@ export async function GET(req) {
     return NextResponse.json({ contracts }, { status: 200 });
   } catch (error) {
     console.error("Error retrieving contract metadata:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({ error: getDatabaseErrorMessage(error) }, { status: 500 });
   }
 }
 
 export async function PATCH(req) {
   try {
     const body = await req.json();
-    const { contractId, walletAddress, status, outcomeNote } = body;
+    const { contractId, web3JobId, walletAddress, status, outcomeNote } = body;
 
-    if (!contractId || !walletAddress || !status) {
-      return NextResponse.json({ error: "contractId, walletAddress, and status are required" }, { status: 400 });
+    if ((!contractId && !web3JobId) || !walletAddress || !status) {
+      return NextResponse.json({ error: "contractId or web3JobId, walletAddress, and status are required" }, { status: 400 });
     }
 
     if (!STATUS_TRANSITIONS.has(status)) {
@@ -307,10 +355,10 @@ export async function PATCH(req) {
         FROM \`contract\` c
         INNER JOIN \`user\` employer ON employer.id = c.employerId
         LEFT JOIN \`user\` freelancer ON freelancer.id = c.freelancerId
-        WHERE c.id = ?
+        WHERE ${contractId ? "c.id = ?" : "c.web3JobId = ?"}
         LIMIT 1
       `,
-      [contractId]
+      [contractId || web3JobId.toString()]
     );
 
     const contract = rows[0];
@@ -329,36 +377,56 @@ export async function PATCH(req) {
     const completedAt = status === "COMPLETED" ? new Date() : null;
     const disputedAt = status === "DISPUTED" ? new Date() : null;
     const outcome = status.startsWith("ABANDONED") || status === "COMPLETED" || status === "CANCELLED" ? status : null;
+    const contractColumns = await getContractColumns();
+    const assignments = ["status = ?"];
+    const values = [status];
+
+    if (contractColumns.has("outcome")) {
+      assignments.push("outcome = COALESCE(?, outcome)");
+      values.push(outcome);
+    }
+
+    if (contractColumns.has("acceptedAt")) {
+      assignments.push("acceptedAt = COALESCE(?, acceptedAt)");
+      values.push(acceptedAt);
+    }
+
+    if (contractColumns.has("completedAt")) {
+      assignments.push("completedAt = COALESCE(?, completedAt)");
+      values.push(completedAt);
+    }
+
+    if (contractColumns.has("disputedAt")) {
+      assignments.push("disputedAt = COALESCE(?, disputedAt)");
+      values.push(disputedAt);
+    }
+
+    if (contractColumns.has("outcomeReportedBy")) {
+      assignments.push("outcomeReportedBy = ?");
+      values.push(isEmployer ? "EMPLOYER" : "FREELANCER");
+    }
+
+    if (contractColumns.has("outcomeNote")) {
+      assignments.push("outcomeNote = ?");
+      values.push(outcomeNote || null);
+    }
+
+    assignments.push("updatedAt = NOW()");
+    values.push(contract.id);
 
     await db.query(
       `
         UPDATE \`contract\`
         SET
-          status = ?,
-          outcome = COALESCE(?, outcome),
-          acceptedAt = COALESCE(?, acceptedAt),
-          completedAt = COALESCE(?, completedAt),
-          disputedAt = COALESCE(?, disputedAt),
-          outcomeReportedBy = ?,
-          outcomeNote = ?,
-          updatedAt = NOW()
+          ${assignments.join(",\n          ")}
         WHERE id = ?
       `,
-      [
-        status,
-        outcome,
-        acceptedAt,
-        completedAt,
-        disputedAt,
-        isEmployer ? "EMPLOYER" : "FREELANCER",
-        outcomeNote || null,
-        contractId,
-      ]
+      values
     );
 
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (error) {
     console.error("Error updating contract state:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({ error: getDatabaseErrorMessage(error) }, { status: 500 });
   }
 }

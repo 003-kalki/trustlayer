@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 const HeroSection = () => {
   return (
     <section className="gradient-mesh relative flex min-h-screen items-center overflow-hidden pt-16">
-      {/* Floating orbs */}
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute left-1/4 top-1/4 h-72 w-72 rounded-full bg-primary/5 blur-3xl" />
         <div className="absolute bottom-1/4 right-1/4 h-96 w-96 rounded-full bg-accent/5 blur-3xl" />
@@ -22,7 +21,7 @@ const HeroSection = () => {
           >
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-sm text-primary">
               <Lock className="h-3.5 w-3.5" />
-              Powered by Hyperledger Indy
+              Powered by Web3Auth, Reclaim, and Polygon Amoy
             </div>
           </motion.div>
 
@@ -63,7 +62,6 @@ const HeroSection = () => {
             </Button>
           </motion.div>
 
-          {/* Stats */}
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
@@ -72,8 +70,8 @@ const HeroSection = () => {
           >
             {[
               { value: "Zero", label: "Personal Data Shared" },
-              { value: "100%", label: "On-Chain Verification" },
-              { value: "Infinity", label: "Portable Credentials" },
+              { value: "100%", label: "Escrow Transparency" },
+              { value: "Infinity", label: "Portable Trust Signals" },
             ].map((stat) => (
               <div key={stat.label}>
                 <div className="font-display text-3xl font-bold text-primary md:text-4xl">

@@ -13,39 +13,39 @@ import {
 const features = [
   {
     icon: Fingerprint,
-    title: "Decentralized Identity (DID)",
+    title: "Wallet-Backed Identity",
     description:
-      "Self-sovereign identity built on Hyperledger Indy. You own your credentials — no platform lock-in.",
+      "Web3Auth creates a secure Polygon wallet identity without forcing users through seed phrases or browser wallet setup.",
   },
   {
     icon: FileCheck,
-    title: "Verifiable Credentials",
+    title: "Trust Record Storage",
     description:
-      "Employer-signed completion certificates that prove your work without exposing personal details.",
+      "Contract metadata, profile details, and trust outcomes are stored off-chain so the product stays usable and affordable.",
   },
   {
     icon: ShieldCheck,
-    title: "Zero-Knowledge Proofs",
+    title: "Proof-Based Verification",
     description:
-      "Prove you have 5+ completed projects without revealing which ones or who you worked with.",
+      "Reclaim verification lets users prove signals like GitHub activity without handing over passwords or raw account access.",
   },
   {
     icon: Globe,
-    title: "Cross-Platform Portable",
+    title: "Portable Reputation",
     description:
-      "Use your trust score on Reddit, Discord, Twitter, or any marketplace — it follows you everywhere.",
+      "Each wallet profile accumulates a readable trust history that can eventually travel into broader marketplace integrations.",
   },
   {
     icon: Lock,
     title: "Privacy-First Design",
     description:
-      "No resumes, no portfolios, no personal data leaks. Only cryptographic proof of competence.",
+      "The app is designed to prove reliability with minimal oversharing, instead of asking users to expose full resumes or personal details.",
   },
   {
     icon: Zap,
-    title: "Dispute Resolution",
+    title: "Escrow and Disputes",
     description:
-      "Automated flagging when deals are abandoned. On-chain evidence protects both parties.",
+      "The payment rail lives on-chain, while disputes, abandonment, and review states are tracked in the app's trust layer.",
   },
 ];
 

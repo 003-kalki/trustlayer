@@ -27,6 +27,9 @@ export async function GET(req) {
         return NextResponse.json(data);
     } catch (error) {
         console.error('Reclaim status fetch error:', error);
-        return NextResponse.json({ error: 'Failed to fetch Reclaim session status' }, { status: 500 });
+        return NextResponse.json(
+            { error: 'Reclaim status service is unavailable. Please retry verification shortly.' },
+            { status: 502 }
+        );
     }
 }

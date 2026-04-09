@@ -46,7 +46,7 @@ export function useEscrowContract() {
                         generatedJobId = parsed.args.jobId.toString();
                         break;
                     }
-                } catch(e) { } // Ignore random unknown logs
+                } catch { } // Ignore random unknown logs
             }
 
             return { success: true, hash: tx.hash, jobId: generatedJobId };

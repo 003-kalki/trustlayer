@@ -13,37 +13,37 @@ const steps = [
   {
     icon: UserPlus,
     step: "01",
-    title: "Create Your DID",
+    title: "Connect Your Wallet Identity",
     description:
-      "Generate a Decentralized Identifier using Hyperledger Indy. No personal data stored — only cryptographic proofs.",
+      "Users sign in with Web3Auth and get a Polygon wallet-backed identity that anchors their TrustLayer profile.",
   },
   {
     icon: Handshake,
     step: "02",
-    title: "Initiate a Deal",
+    title: "Create and Fund a Deal",
     description:
-      "Both parties agree to terms on-chain. The deal contract is immutable and transparent to both sides.",
+      "An employer creates an escrow job, deposits the first 50%, and stores the readable contract details in TrustLayer.",
   },
   {
     icon: CheckCircle2,
     step: "03",
-    title: "Complete & Certify",
+    title: "Accept and Deliver",
     description:
-      "Upon work completion, the employer signs a verifiable credential certifying the freelancer's successful delivery.",
+      "The freelancer accepts, completes the work, and moves the contract into review when the project is ready.",
   },
   {
     icon: Award,
     step: "04",
-    title: "Build Reputation",
+    title: "Verify Trust Signals",
     description:
-      "Credentials accumulate as portable, privacy-preserving proof of your track record across any platform.",
+      "Users can attach proof-based signals like GitHub verification so their trust record carries more weight.",
   },
   {
     icon: ShieldAlert,
     step: "05",
-    title: "Dispute Resolution",
+    title: "Record Outcomes",
     description:
-      "If a party abandons the project, the system flags it and triggers a resolution protocol with evidence on-chain.",
+      "Completed, disputed, and abandoned contracts stay visible in the trust history for both sides.",
   },
 ];
 
@@ -66,7 +66,6 @@ const HowItWorksSection = () => {
         </motion.div>
 
         <div className="relative mt-16">
-          {/* Vertical line */}
           <div className="absolute left-8 top-0 hidden h-full w-px bg-gradient-to-b from-primary/50 via-primary/20 to-transparent md:left-1/2 md:block" />
 
           <div className="space-y-12">
@@ -99,7 +98,6 @@ const HowItWorksSection = () => {
                   </div>
                 </div>
 
-                {/* Center icon */}
                 <div className="z-10 flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-2 border-primary/30 bg-background">
                   <step.icon className="h-6 w-6 text-primary" />
                 </div>

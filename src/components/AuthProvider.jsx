@@ -18,17 +18,19 @@ const chainConfig = {
     logo: "https://cryptologos.cc/logos/polygon-matic-logo.png",
 };
 
-const clientId = process.env.NEXT_PUBLIC_WEB3AUTH_CLIENT_ID || "BPi5PB_UiIZ-cPz1DpV5TbDbcYyAS5nQxMEhI_H0u2bYY-eD2f5J6XQvYgV8xGvXJ5B-R-6-Gz_Z_c6M-Uhw";
+const clientId = process.env.NEXT_PUBLIC_WEB3AUTH_CLIENT_ID;
 
 const privateKeyProvider = new EthereumPrivateKeyProvider({
     config: { chainConfig },
 });
 
-const web3auth = new Web3Auth({
-    clientId,
-    web3AuthNetwork: WEB3AUTH_NETWORK.SAPPHIRE_DEVNET,
-    privateKeyProvider,
-});
+const web3auth = clientId
+    ? new Web3Auth({
+        clientId,
+        web3AuthNetwork: WEB3AUTH_NETWORK.SAPPHIRE_DEVNET,
+        privateKeyProvider,
+    })
+    : null;
 
 export const Web3AuthContext = createContext({
     web3auth: null,
@@ -51,6 +53,11 @@ export default function AuthProvider({ children }) {
     useEffect(() => {
         const init = async () => {
             try {
+                if (!web3auth) {
+                    console.error("NEXT_PUBLIC_WEB3AUTH_CLIENT_ID is not configured.");
+                    return;
+                }
+
                 await web3auth.initModal();
                 setProvider(web3auth.provider);
                 if (web3auth.connected && web3auth.provider) {
@@ -66,6 +73,7 @@ export default function AuthProvider({ children }) {
     }, []);
 
     const getAccounts = async () => {
+        if (!web3auth) return;
         if (!web3auth.provider) return;
         try {
             // Using raw RPC call since we'll use ethers.js later
@@ -82,6 +90,10 @@ export default function AuthProvider({ children }) {
 
     const login = async () => {
         try {
+            if (!web3auth) {
+                throw new Error("NEXT_PUBLIC_WEB3AUTH_CLIENT_ID is not configured.");
+            }
+
             const web3authProvider = await web3auth.connect();
             setProvider(web3authProvider);
             setEthersProvider(new ethers.BrowserProvider(web3authProvider));
@@ -94,6 +106,10 @@ export default function AuthProvider({ children }) {
 
     const logout = async () => {
         try {
+            if (!web3auth) {
+                return;
+            }
+
             await web3auth.logout();
             setProvider(null);
             setEthersProvider(null);

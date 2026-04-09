@@ -6,62 +6,62 @@ import { CheckCircle2, Circle, Clock } from "lucide-react";
 const phases = [
   {
     phase: "Phase 1",
-    title: "Foundation & DID Infrastructure",
-    timeline: "Q1 2026",
-    status: "in-progress",
+    title: "Wallet Identity and Escrow MVP",
+    timeline: "Live now",
+    status: "completed",
     items: [
-      "Set up Hyperledger Indy network nodes",
-      "Implement DID creation & wallet management",
-      "Build basic identity verification flow",
-      "Design credential schema for work completion",
+      "Web3Auth wallet-backed sign-in",
+      "Profile creation tied to wallet address",
+      "On-chain 50/50 escrow on Polygon Amoy",
+      "Dashboard trust history and contract states",
     ],
   },
   {
     phase: "Phase 2",
-    title: "Deal Smart Contracts & Certification",
-    timeline: "Q2 2026",
-    status: "upcoming",
+    title: "Verification and Portable Profiles",
+    timeline: "Current build",
+    status: "in-progress",
     items: [
-      "Build deal initiation & agreement protocol",
-      "Implement employer-signed completion certificates",
-      "Create verifiable credential issuance pipeline",
-      "Add milestone-based deal tracking",
+      "Reclaim-based GitHub verification",
+      "Dedicated verification workspace",
+      "Portable credentials summary page",
+      "Selective disclosure-oriented trust record design",
     ],
   },
   {
     phase: "Phase 3",
-    title: "Dispute Resolution & Reputation",
-    timeline: "Q3 2026",
+    title: "Richer Credential Issuance",
+    timeline: "Next",
     status: "upcoming",
     items: [
-      "Build abandonment detection system",
-      "Implement dispute resolution protocol",
-      "Create portable reputation scoring (ZKP-based)",
-      "Add arbitration DAO for complex disputes",
+      "Completion certificates for delivered work",
+      "Additional marketplace proof adapters",
+      "Employer attestations and reusable references",
+      "Sharable credential bundles per wallet identity",
     ],
   },
   {
     phase: "Phase 4",
-    title: "Platform Integrations & Scale",
-    timeline: "Q4 2026",
+    title: "Integrations and Indexing",
+    timeline: "Future",
     status: "upcoming",
     items: [
-      "Discord bot for deal verification",
-      "Reddit integration via browser extension",
-      "Twitter/X verification badges",
+      "Discord, Reddit, and X integrations",
       "Public API for third-party marketplaces",
+      "Indexed on-chain reads instead of full contract scans",
+      "Improved analytics and reputation export flows",
     ],
   },
   {
     phase: "Phase 5",
-    title: "Ecosystem & Governance",
-    timeline: "Q1 2027",
+    title: "Advanced Trust Infrastructure",
+    timeline: "Future",
     status: "upcoming",
     items: [
-      "Community governance token launch",
-      "Decentralized arbitrator network",
-      "Cross-chain credential bridging",
-      "Mobile wallet app release",
+      "More advanced dispute workflows",
+      "Expanded selective disclosure controls",
+      "Standards-based credential interoperability",
+      "Mobile and cross-platform trust wallet experiences",
     ],
   },
 ];
@@ -114,12 +114,11 @@ const RoadmapSection = () => {
             The Path Forward
           </h2>
           <p className="mt-4 text-muted-foreground">
-            From identity infrastructure to a full decentralized trust ecosystem.
+            From the current escrow MVP to a broader portable trust ecosystem.
           </p>
         </motion.div>
 
         <div className="relative mt-16">
-          {/* Timeline line */}
           <div className="absolute left-6 top-0 hidden h-full w-px bg-gradient-to-b from-primary/40 via-accent/20 to-transparent md:block" />
 
           <div className="space-y-8">
@@ -132,7 +131,6 @@ const RoadmapSection = () => {
                 transition={{ delay: i * 0.1 }}
                 className="relative md:pl-16"
               >
-                {/* Timeline dot */}
                 <div className="absolute left-4 top-6 hidden md:block">
                   {statusIcon(phase.status)}
                 </div>

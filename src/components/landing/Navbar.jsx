@@ -20,7 +20,7 @@ const Navbar = () => {
   const AuthButtons = () => (
     <div className="flex flex-col gap-4 py-4 items-center">
       <p className="text-sm text-center text-muted-foreground mb-2 px-2">
-        TrustLayer does not use a traditional login system. We use <strong>Web3Auth</strong> to automatically generate a secure Polygon crypto wallet for you, giving you full control of your Decentralized Identity.
+        TrustLayer uses <strong>Web3Auth</strong> to create a secure Polygon wallet identity for you, so you can use escrow and build a trust record without a traditional account system.
       </p>
       <Button
         onClick={login}
@@ -44,7 +44,6 @@ const Navbar = () => {
       className="fixed top-0 left-0 right-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl"
     >
       <div className="container mx-auto flex h-16 items-center justify-between px-6">
-        {/* Logo */}
         <div className="flex items-center gap-2">
           <Shield className="h-7 w-7 text-primary" />
           <span className="font-display text-xl font-bold text-foreground">
@@ -52,14 +51,18 @@ const Navbar = () => {
           </span>
         </div>
 
-        {/* Desktop nav links */}
         <div className="hidden items-center gap-8 md:flex md:mr-4">
           <Link href="/how-it-works" className="text-sm text-muted-foreground transition-colors hover:text-primary">How It Works</Link>
           <Link href="/#features" className="text-sm text-muted-foreground transition-colors hover:text-primary">Features</Link>
           <Link href="/#roadmap" className="text-sm text-muted-foreground transition-colors hover:text-primary">Roadmap</Link>
+          {isConnected && (
+            <>
+              <Link href="/verify" className="text-sm text-muted-foreground transition-colors hover:text-primary">Verify</Link>
+              <Link href="/credentials" className="text-sm text-muted-foreground transition-colors hover:text-primary">Credentials</Link>
+            </>
+          )}
         </div>
 
-        {/* Actions */}
         <div className="flex items-center gap-3">
           {isConnected ? (
             <>
@@ -90,7 +93,7 @@ const Navbar = () => {
                 <DialogHeader>
                   <DialogTitle className="text-center text-2xl">Welcome to TrustLayer</DialogTitle>
                   <DialogDescription className="text-center">
-                    Sign in with Google to create your secure Web3 identity.
+                    Sign in to create your secure wallet-backed trust identity.
                   </DialogDescription>
                 </DialogHeader>
                 <AuthButtons />

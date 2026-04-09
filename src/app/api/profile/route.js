@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { db, getDatabaseErrorMessage } from "@/lib/db";
 
 let profileColumnsPromise;
 
@@ -160,7 +160,7 @@ export async function POST(req) {
     return NextResponse.json({ user: hydratedUser }, { status: 200 });
   } catch (error) {
     console.error("Error in profile UPSERT API:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({ error: getDatabaseErrorMessage(error) }, { status: 500 });
   }
 }
 
@@ -182,7 +182,7 @@ export async function GET(req) {
     return NextResponse.json({ user }, { status: 200 });
   } catch (error) {
     console.error("Error in profile GET API:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({ error: getDatabaseErrorMessage(error) }, { status: 500 });
   }
 }
 
@@ -254,6 +254,6 @@ export async function PATCH(req) {
     return NextResponse.json({ user: updatedUser }, { status: 200 });
   } catch (error) {
     console.error("Error updating profile:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({ error: getDatabaseErrorMessage(error) }, { status: 500 });
   }
 }

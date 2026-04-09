@@ -68,6 +68,78 @@ export default function DashboardPage() {
     const [statusUpdatingId, setStatusUpdatingId] = useState(null);
     const [profileFeedback, setProfileFeedback] = useState(null);
     const [copyFeedback, setCopyFeedback] = useState("");
+    const [dashboardFeedback, setDashboardFeedback] = useState(null);
+
+    const fetchContractsForWallet = async (walletAddress) => {
+        const response = await fetch(`/api/contracts?walletAddress=${walletAddress}`);
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || "TrustLayer could not load your contract history.");
+        }
+
+        const data = await response.json();
+        return data.contracts || [];
+    };
+
+    const syncContractRecord = async (job) => {
+        const response = await fetch("/api/contracts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                web3JobId: job.id?.toString(),
+                title: job.title || `Escrow Contract #${job.id}`,
+                description: job.description || "On-chain contract synced automatically after a partial dashboard sync.",
+                employerAddress: job.employer,
+                freelancerAddress: job.freelancer,
+                totalAmount: Number(job.totalAmountMatic),
+                milestoneAmount: Number(job.depositedAmountMatic),
+            }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `TrustLayer could not sync contract #${job.id}.`);
+        }
+
+        const data = await response.json();
+        return data.contract;
+    };
+
+    const reconcileSyncedContracts = async (walletAddress, fetchedContracts, jobs) => {
+        const existingJobIds = new Set(
+            fetchedContracts
+                .map((contract) => contract.web3JobId?.toString())
+                .filter(Boolean)
+        );
+        const missingJobs = jobs.filter((job) => job.id && !existingJobIds.has(job.id.toString()));
+
+        if (missingJobs.length === 0) {
+            return fetchedContracts;
+        }
+
+        const syncResults = await Promise.allSettled(missingJobs.map((job) => syncContractRecord(job)));
+        const syncedCount = syncResults.filter((result) => result.status === "fulfilled").length;
+
+        if (syncedCount > 0) {
+            setDashboardFeedback({
+                type: "success",
+                message: syncedCount === 1
+                    ? "A contract was resynced from the blockchain and is ready for dashboard actions."
+                    : `${syncedCount} contracts were resynced from the blockchain and are ready for dashboard actions.`,
+            });
+            return await fetchContractsForWallet(walletAddress);
+        }
+
+        const firstFailure = syncResults.find((result) => result.status === "rejected");
+        if (firstFailure) {
+            setDashboardFeedback({
+                type: "error",
+                message: firstFailure.reason?.message || "Contracts were found on-chain, but TrustLayer could not sync them to the dashboard yet.",
+            });
+        }
+
+        return fetchedContracts;
+    };
 
     const hydrateData = async () => {
         if (!address) {
@@ -101,14 +173,26 @@ export default function DashboardPage() {
 
             setOnChainJobs(jobs);
 
+            let fetchedContracts = [];
             if (contractsResponse.ok) {
                 const data = await contractsResponse.json();
-                setContracts(data.contracts || []);
+                fetchedContracts = data.contracts || [];
             } else {
-                setContracts([]);
+                const errorData = await contractsResponse.json().catch(() => ({}));
+                setDashboardFeedback({
+                    type: "error",
+                    message: errorData.error || "TrustLayer could not load contract metadata from the database.",
+                });
             }
+
+            const reconciledContracts = await reconcileSyncedContracts(address, fetchedContracts, jobs);
+            setContracts(reconciledContracts);
         } catch (error) {
             console.error("Failed to hydrate dashboard", error);
+            setDashboardFeedback({
+                type: "error",
+                message: error.message || "Dashboard data could not be refreshed.",
+            });
         } finally {
             setLoading(false);
         }
@@ -235,29 +319,53 @@ export default function DashboardPage() {
     };
 
     const handleStatusChange = async (contractWeb3Id, nextStatus) => {
-        const target = contracts.find((contract) => (contract.web3JobId || contract.id) === contractWeb3Id);
-        if (!target) {
-            return;
-        }
-
+        setDashboardFeedback(null);
         setStatusUpdatingId(contractWeb3Id);
 
         try {
+            const matchingContract = contracts.find(
+                (contract) => (contract.web3JobId || contract.id)?.toString() === contractWeb3Id?.toString()
+            );
+            let target = matchingContract;
+
+            if (!target) {
+                const chainJob = onChainJobs.find((job) => job.id?.toString() === contractWeb3Id?.toString());
+                if (!chainJob) {
+                    throw new Error("TrustLayer could not find that contract in the dashboard or on-chain state.");
+                }
+
+                target = await syncContractRecord(chainJob);
+                setContracts((prev) => {
+                    const withoutDuplicate = prev.filter(
+                        (contract) => contract.web3JobId?.toString() !== target.web3JobId?.toString()
+                    );
+                    return [target, ...withoutDuplicate];
+                });
+            }
+
             const response = await fetch("/api/contracts", {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     contractId: target.id,
+                    web3JobId: contractWeb3Id,
                     walletAddress: address,
                     status: nextStatus,
                 }),
             });
 
-            if (response.ok) {
-                await hydrateData();
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || "TrustLayer could not record that status change.");
             }
+
+            await hydrateData();
         } catch (error) {
             console.error("Failed to update contract state", error);
+            setDashboardFeedback({
+                type: "error",
+                message: error.message || "TrustLayer could not update that contract.",
+            });
         } finally {
             setStatusUpdatingId(null);
         }
@@ -429,6 +537,18 @@ export default function DashboardPage() {
                         transition={{ delay: 0.1 }}
                         className="lg:col-span-2 space-y-6"
                     >
+                        {dashboardFeedback && (
+                            <div
+                                className={`rounded-2xl border px-4 py-3 text-sm ${
+                                    dashboardFeedback.type === "success"
+                                        ? "border-green-200 bg-green-50 text-green-700"
+                                        : "border-amber-200 bg-amber-50 text-amber-800"
+                                }`}
+                            >
+                                {dashboardFeedback.message}
+                            </div>
+                        )}
+
                         <div className="bg-white rounded-2xl border p-6 shadow-sm">
                             <div className="flex items-center justify-between mb-6">
                                 <div>

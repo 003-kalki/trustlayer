@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { verifyProof } from "@reclaimprotocol/js-sdk";
-import { db } from "@/lib/db";
+import { db, getDatabaseErrorMessage } from "@/lib/db";
 
 export async function POST(req) {
   try {
@@ -45,8 +45,8 @@ export async function POST(req) {
     }
 
     return NextResponse.json({ success: true }, { status: 200 });
-  } catch (e) {
-    console.error("ZKP Storage Error", e);
-    return NextResponse.json({ error: "Failed permanently storing verified credential" }, { status: 500 });
+  } catch (error) {
+    console.error("Credential verification storage error", error);
+    return NextResponse.json({ error: getDatabaseErrorMessage(error) }, { status: 500 });
   }
 }
