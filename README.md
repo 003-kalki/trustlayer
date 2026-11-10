@@ -21,7 +21,7 @@ TrustLayer is a hybrid Web2 + Web3 trust layer for freelance deals. It combines 
 - Reclaim Protocol JS SDK
 - MySQL/MariaDB via `mysql2`
 - Prisma schema for data modeling
-- Hardhat-style smart contract workspace in `smart_contracts`
+- Solidity contract workspace in `smart_contracts` (solc + Ganache + Mocha)
 
 ## Project Structure
 
@@ -68,12 +68,21 @@ smart_contracts/
 
 The wallet address is the primary account identifier across the app.
 
+After Web3Auth connects, the app signs a one-time sign-in message (no transaction, no gas). The server checks the signature and sets an HttpOnly session cookie (`SESSION_SECRET` signs it). Every API route that reads or changes private data takes the wallet address from that session, never from the request body:
+
+- `GET /api/auth/nonce?address=…`: one-time message to sign
+- `POST /api/auth/session`: exchange the signature for a session cookie
+- `DELETE /api/auth/session`: sign out
+
+`POST /api/contracts` also reads the job's employer, freelancer and amount from the escrow contract, so contract records can't be fabricated. `GET /api/profile` stays public because trust profiles are meant to be shared.
+
 ### 2. Escrow
 
 `src/hooks/useEscrowContract.js` talks to the deployed contract using `ethers.Contract`.
 
 - `createEscrowJob(freelancerAddress, totalAmountMatic)`
-- `completeEscrowJob(jobId, totalAmountMatic)`
+- `completeEscrowJob(jobId)`
+- `refundEscrowJob(jobId)`
 - `getUserJobs(userAddress)`
 
 The smart contract enforces the 50/50 rule:
@@ -81,14 +90,15 @@ The smart contract enforces the 50/50 rule:
 - employer deposits half at creation
 - employer deposits the remainder at completion
 - the contract releases the full amount to the freelancer
+- if the freelancer declines or withdraws, only they can call `refundJob`, which returns the deposit to the employer
 
 ### 3. Profile and Trust History
 
 The API routes under `src/app/api` manage users, profiles, contracts, and proof verification.
 
-- `POST /api/profile`: upsert user profile by wallet address
+- `POST /api/profile`: upsert the signed-in user's profile
 - `PATCH /api/profile`: update handle, bio, display name, role, and privacy settings
-- `GET /api/contracts`: fetch contracts for a wallet or a set of on-chain job ids
+- `GET /api/contracts`: fetch the signed-in wallet's contracts, optionally filtered to a set of on-chain job ids
 - `PATCH /api/contracts`: update off-chain trust state
 - `POST /api/profile/verify`: validate and store Reclaim-based GitHub verification
 
@@ -109,6 +119,7 @@ Create `.env.local` with the values required for your setup:
 
 ```bash
 DATABASE_URL=
+SESSION_SECRET=
 NEXT_PUBLIC_WEB3AUTH_CLIENT_ID=
 NEXT_PUBLIC_CONTRACT_ADDRESS=
 PRIVATE_KEY=
@@ -140,6 +151,20 @@ The Solidity contract lives in `smart_contracts/contracts/TrustLayer.sol`.
 
 The workspace includes tests in `smart_contracts/test`. The frontend ABI is stored in `src/lib/TrustLayerABI.json`.
 
+```bash
+cd smart_contracts
+npm install
+npm test
+npm run deploy:amoy   # reads PRIVATE_KEY from ../.env.local
+```
+
+After changing the contract, redeploy it, set `NEXT_PUBLIC_CONTRACT_ADDRESS` to the new address, and regenerate the frontend ABI:
+
+```bash
+node -e "const c=require('./smart_contracts/test/compile');require('fs').writeFileSync('src/lib/TrustLayerABI.json',JSON.stringify(c.abi,null,2)+'
+')"
+```
+
 ## Current State
 
 Implemented:
@@ -155,7 +180,7 @@ Still future-facing:
 
 - richer credential issuance beyond GitHub verification
 - marketplace integrations
-- deeper dispute handling on-chain
+- deeper dispute handling on-chain (an employer whose freelancer never responds still cannot recover the deposit without the freelancer calling `refundJob`)
 - large-scale indexing beyond contract-by-contract scanning
 
 ## Notes

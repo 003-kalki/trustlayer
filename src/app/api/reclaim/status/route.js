@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
+import { requireSession } from '@/lib/session';
 
 export async function GET(req) {
+    const session = requireSession(req);
+    if (session.response) return session.response;
+
     const { searchParams } = new URL(req.url);
     const sessionId = searchParams.get('sessionId');
 

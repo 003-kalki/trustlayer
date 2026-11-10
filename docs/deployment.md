@@ -20,15 +20,14 @@ npm run db:bootstrap
 
 4. Set every variable from `.env.example` in the hosting provider.
 5. Deploy the Next.js app.
-6. Update allowed origins/callback URLs in Google, Web3Auth, and Reclaim dashboards to include the hosted URL.
+6. Update allowed origins/callback URLs in the Web3Auth and Reclaim dashboards to include the hosted URL.
 
 ## Secret rotation checklist
 
 Rotate these values before public launch if they were ever shared, committed, pasted into chat, or exposed in screenshots:
 
-- `GOOGLE_CLIENT_SECRET`
-- `NEXTAUTH_SECRET`
-- `PRIVATE_KEY`
+- `SESSION_SECRET` (rotating it signs everyone out)
+- `PRIVATE_KEY` (the deployer key that was hardcoded in `smart_contracts/scripts/deploy.js` before this fix is in git history and must be treated as public)
 - `APPLICATION_SECRET`
 - any database password in `DATABASE_URL`
 - Web3Auth/Reclaim application secrets if their provider dashboard supports regeneration

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { db, getDatabaseErrorMessage } from "@/lib/db";
+import { getOnChainJob } from "@/lib/chain";
+import { requireSession } from "@/lib/session";
 
 const STATUS_TRANSITIONS = new Set([
   "PENDING_ACCEPTANCE",
@@ -12,6 +14,22 @@ const STATUS_TRANSITIONS = new Set([
   "ABANDONED_BY_EMPLOYER",
   "CANCELLED",
 ]);
+
+// Which statuses each party may move a contract into, and from which current statuses.
+const ROLE_TRANSITIONS = {
+  EMPLOYER: {
+    COMPLETED: ["ACTIVE", "SUBMITTED_FOR_REVIEW"],
+    DISPUTED: ["ACTIVE", "SUBMITTED_FOR_REVIEW"],
+    ABANDONED_BY_FREELANCER: ["PENDING_ACCEPTANCE", "FUNDED"],
+  },
+  FREELANCER: {
+    ACTIVE: ["PENDING_ACCEPTANCE", "FUNDED"],
+    CANCELLED: ["PENDING_ACCEPTANCE", "FUNDED"],
+    SUBMITTED_FOR_REVIEW: ["ACTIVE"],
+    ABANDONED_BY_FREELANCER: ["ACTIVE"],
+    ABANDONED_BY_EMPLOYER: ["ACTIVE", "SUBMITTED_FOR_REVIEW"],
+  },
+};
 
 let contractColumnsPromise;
 let profileColumnsPromise;
@@ -139,23 +157,39 @@ async function ensureUserWithProfile(walletAddress) {
 
 export async function POST(req) {
   try {
+    const session = requireSession(req);
+    if (session.response) return session.response;
+
     const body = await req.json();
     const {
       web3JobId,
       title,
       description,
-      employerAddress,
-      freelancerAddress,
-      totalAmount,
       milestoneAmount,
       deadline,
     } = body;
 
-    if (!web3JobId || !employerAddress || !freelancerAddress) {
+    if (!web3JobId || !/^\d+$/.test(web3JobId.toString())) {
       return NextResponse.json({ error: "Missing core transaction parameters" }, { status: 400 });
     }
 
     const normalizedWeb3JobId = web3JobId.toString();
+
+    // Parties and amount come from the escrow contract, never from the request body.
+    const chainJob = await getOnChainJob(normalizedWeb3JobId);
+    if (!chainJob) {
+      return NextResponse.json({ error: "That escrow job was not found on-chain yet. Please retry in a moment." }, { status: 409 });
+    }
+
+    const employerAddress = chainJob.employer;
+    const freelancerAddress = chainJob.freelancer;
+    const totalAmount = Number(chainJob.totalAmountMatic);
+    const isEmployer = session.address === employerAddress;
+
+    if (!isEmployer && session.address !== freelancerAddress) {
+      return NextResponse.json({ error: "You are not a participant in this contract" }, { status: 403 });
+    }
+
     const employerId = await ensureUserWithProfile(employerAddress);
     const freelancerId = await ensureUserWithProfile(freelancerAddress);
     const contractColumns = await getContractColumns();
@@ -164,6 +198,12 @@ export async function POST(req) {
       [normalizedWeb3JobId]
     );
     const existingContractId = existingRows[0]?.id;
+
+    // Only the employer may rewrite agreement details on an existing record.
+    if (existingContractId && !isEmployer) {
+      const contract = await fetchContractRecord("c.id = ?", [existingContractId], session.address);
+      return NextResponse.json({ contract }, { status: 200 });
+    }
 
     if (existingContractId) {
       await db.query(
@@ -192,7 +232,7 @@ export async function POST(req) {
         ]
       );
 
-      const contract = await fetchContractRecord("c.id = ?", [existingContractId], employerAddress);
+      const contract = await fetchContractRecord("c.id = ?", [existingContractId], session.address);
       return NextResponse.json({ contract }, { status: 200 });
     }
 
@@ -252,7 +292,7 @@ export async function POST(req) {
       );
     } catch (error) {
       if (error.code === "ER_DUP_ENTRY") {
-        const existingContract = await fetchContractRecord("c.web3JobId = ?", [normalizedWeb3JobId], employerAddress);
+        const existingContract = await fetchContractRecord("c.web3JobId = ?", [normalizedWeb3JobId], session.address);
         if (existingContract) {
           return NextResponse.json({ contract: existingContract }, { status: 200 });
         }
@@ -261,7 +301,7 @@ export async function POST(req) {
       throw error;
     }
 
-    const contract = await fetchContractRecord("c.id = ?", [contractId], employerAddress);
+    const contract = await fetchContractRecord("c.id = ?", [contractId], session.address);
     return NextResponse.json({ contract }, { status: 200 });
   } catch (error) {
     console.error("Error committing contract metadata:", error);
@@ -271,9 +311,13 @@ export async function POST(req) {
 
 export async function GET(req) {
   try {
+    const session = requireSession(req);
+    if (session.response) return session.response;
+
+    // Contracts are private to their two parties, so listings are always scoped to the signed-in wallet.
     const { searchParams } = new URL(req.url);
     const jobIdsParam = searchParams.get("jobIds");
-    const walletAddress = searchParams.get("walletAddress");
+    const walletAddress = session.address;
 
     let rows = [];
 
@@ -298,13 +342,14 @@ export async function GET(req) {
           INNER JOIN \`user\` employer ON employer.id = c.employerId
           LEFT JOIN \`user\` freelancer ON freelancer.id = c.freelancerId
           WHERE c.web3JobId IN (${placeholders})
+            AND (employer.walletAddress = ? OR freelancer.walletAddress = ?)
           ORDER BY c.createdAt DESC
         `,
-        jobIds
+        [...jobIds, walletAddress, walletAddress]
       );
       rows = result;
-    } else if (walletAddress) {
-      const normalizedWalletAddress = walletAddress.toLowerCase();
+    } else {
+      const normalizedWalletAddress = walletAddress;
       const [result] = await db.query(
         `
           SELECT
@@ -332,22 +377,26 @@ export async function GET(req) {
 
 export async function PATCH(req) {
   try {
-    const body = await req.json();
-    const { contractId, web3JobId, walletAddress, status, outcomeNote } = body;
+    const session = requireSession(req);
+    if (session.response) return session.response;
 
-    if ((!contractId && !web3JobId) || !walletAddress || !status) {
-      return NextResponse.json({ error: "contractId or web3JobId, walletAddress, and status are required" }, { status: 400 });
+    const body = await req.json();
+    const { contractId, web3JobId, status, outcomeNote } = body;
+
+    if ((!contractId && !web3JobId) || !status) {
+      return NextResponse.json({ error: "contractId or web3JobId, and status are required" }, { status: 400 });
     }
 
     if (!STATUS_TRANSITIONS.has(status)) {
       return NextResponse.json({ error: "Unsupported status transition" }, { status: 400 });
     }
 
-    const normalizedWalletAddress = walletAddress.toLowerCase();
+    const normalizedWalletAddress = session.address;
     const [rows] = await db.query(
       `
         SELECT
           c.id,
+          c.status,
           c.employerId,
           c.freelancerId,
           employer.walletAddress AS employerWalletAddress,
@@ -371,6 +420,14 @@ export async function PATCH(req) {
 
     if (!isEmployer && !isFreelancer) {
       return NextResponse.json({ error: "You are not a participant in this contract" }, { status: 403 });
+    }
+
+    const allowedFrom = ROLE_TRANSITIONS[isEmployer ? "EMPLOYER" : "FREELANCER"][status];
+    if (!allowedFrom?.includes(contract.status)) {
+      return NextResponse.json(
+        { error: `The ${isEmployer ? "employer" : "freelancer"} cannot move a ${contract.status} contract to ${status}` },
+        { status: 409 }
+      );
     }
 
     const acceptedAt = status === "ACTIVE" ? new Date() : null;

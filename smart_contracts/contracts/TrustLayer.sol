@@ -6,8 +6,9 @@ pragma solidity ^0.8.20;
  * @dev Manages 50/50 milestone agreements between Employers and Freelancers.
  */
 contract TrustLayer {
-    
-    enum JobStatus { DRAFT, ACTIVE, COMPLETED, DISPUTED }
+
+    // New values must be appended so existing status numbers keep their meaning.
+    enum JobStatus { DRAFT, ACTIVE, COMPLETED, DISPUTED, REFUNDED }
 
     struct Job {
         uint256 id;
@@ -23,9 +24,12 @@ contract TrustLayer {
 
     event JobCreated(uint256 indexed jobId, address indexed employer, address indexed freelancer, uint256 initialDeposit);
     event JobCompleted(uint256 indexed jobId, address indexed employer, address indexed freelancer, uint256 finalPayout);
+    event JobRefunded(uint256 indexed jobId, address indexed employer, address indexed freelancer, uint256 refundAmount);
 
     error InvalidDepositAmount();
+    error InvalidFreelancer();
     error NotEmployer();
+    error NotFreelancer();
     error JobNotActive();
     error TransferFailed();
 
@@ -33,13 +37,16 @@ contract TrustLayer {
      * @dev Employer initiates a job by depositing the first 50% milestone.
      */
     function createJob(address _freelancer, uint256 _totalAmount) external payable {
+        if (_freelancer == address(0) || _freelancer == msg.sender) {
+            revert InvalidFreelancer();
+        }
         // Require exactly 50% of the total amount upfront
-        if (msg.value != _totalAmount / 2) {
+        if (_totalAmount == 0 || msg.value != _totalAmount / 2) {
             revert InvalidDepositAmount();
         }
 
         jobCounter++;
-        
+
         jobs[jobCounter] = Job({
             id: jobCounter,
             employer: msg.sender,
@@ -64,7 +71,7 @@ contract TrustLayer {
         if (job.status != JobStatus.ACTIVE) {
             revert JobNotActive();
         }
-        
+
         // Require the remaining 50%
         uint256 remainingBalance = job.totalAmount - job.depositedAmount;
         if (msg.value != remainingBalance) {
@@ -82,5 +89,31 @@ contract TrustLayer {
         }
 
         emit JobCompleted(_jobId, job.employer, job.freelancer, job.totalAmount);
+    }
+
+    /**
+     * @dev Freelancer declines or walks away from the job, returning the deposit to the employer.
+     * Only the freelancer can trigger this, so an employer can never claw back funds on their own.
+     */
+    function refundJob(uint256 _jobId) external {
+        Job storage job = jobs[_jobId];
+
+        if (msg.sender != job.freelancer) {
+            revert NotFreelancer();
+        }
+        if (job.status != JobStatus.ACTIVE) {
+            revert JobNotActive();
+        }
+
+        uint256 refundAmount = job.depositedAmount;
+        job.depositedAmount = 0;
+        job.status = JobStatus.REFUNDED;
+
+        (bool success, ) = payable(job.employer).call{value: refundAmount}("");
+        if (!success) {
+            revert TransferFailed();
+        }
+
+        emit JobRefunded(_jobId, job.employer, job.freelancer, refundAmount);
     }
 }

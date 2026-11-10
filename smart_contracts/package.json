@@ -1,13 +1,15 @@
 {
   "name": "trustlayer-contracts",
   "version": "1.0.0",
-  "description": "Hardhat V2 workspace",
+  "description": "TrustLayer escrow contract: solc + Ganache test suite and Amoy deploy script",
   "private": true,
   "scripts": {
-    "test": "hardhat test"
+    "test": "mocha test/TrustLayer.js",
+    "deploy:amoy": "node scripts/deploy.js"
   },
   "devDependencies": {
     "chai": "^6.2.2",
+    "dotenv": "^17.4.2",
     "ethers": "^6.16.0",
     "ganache": "^7.9.2",
     "mocha": "^11.7.5",

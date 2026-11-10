@@ -234,7 +234,7 @@ export default function DashboardPage() {
                 totalAmountMatic: job.totalAmountMatic,
                 depositedAmountMatic: job.depositedAmountMatic,
                 status: typeof job.status === "number"
-                    ? (job.status === 2 ? "COMPLETED" : job.status === 3 ? "DISPUTED" : "ACTIVE")
+                    ? ({ 2: "COMPLETED", 3: "DISPUTED", 4: "CANCELLED" }[job.status] || "ACTIVE")
                     : job.status,
                 employerWalletAddress: job.employer,
                 freelancerWalletAddress: job.freelancer,

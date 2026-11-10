@@ -11,7 +11,7 @@ export function useEscrowContract() {
     const [txError, setTxError] = useState(null);
 
     const getContract = async () => {
-        if (!ethersProvider) throw new Error("Wallet not connected! Please log in via Google.");
+        if (!ethersProvider) throw new Error("Wallet not connected! Please log in first.");
         if (!CONTRACT_ADDRESS) throw new Error("Contract Address missing in environment!");
         const signer = await ethersProvider.getSigner();
         return new ethers.Contract(CONTRACT_ADDRESS, abi, signer);
@@ -59,16 +59,16 @@ export function useEscrowContract() {
         }
     };
 
-    const completeEscrowJob = async (jobId, totalAmountMatic) => {
+    const completeEscrowJob = async (jobId) => {
         setIsTxLoading(true);
         setTxError(null);
         try {
             const contract = await getContract();
-            
-            const totalAmountWei = ethers.parseEther(totalAmountMatic.toString());
-            
-            // The exact remaining 50% must be sent on completion
-            const remainingWei = totalAmountWei / 2n;
+
+            // The exact remaining balance must be sent on completion. Read it from the chain
+            // so odd-wei totals (where the first deposit rounded down) still match.
+            const job = await contract.jobs(jobId);
+            const remainingWei = job.totalAmount - job.depositedAmount;
 
             console.log(`Releasing funds to Job ID: ${jobId}...`);
             const tx = await contract.completeJob(jobId, {
@@ -81,6 +81,28 @@ export function useEscrowContract() {
         } catch (err) {
             console.error(err);
             setTxError(err.message || "Failed to release Escrow funds");
+            return { success: false, error: err };
+        } finally {
+            setIsTxLoading(false);
+        }
+    };
+
+    // Freelancer-only: returns the employer's deposit when the freelancer declines or withdraws.
+    const refundEscrowJob = async (jobId) => {
+        setIsTxLoading(true);
+        setTxError(null);
+        try {
+            const contract = await getContract();
+
+            console.log(`Refunding deposit for Job ID: ${jobId}...`);
+            const tx = await contract.refundJob(jobId);
+
+            const receipt = await tx.wait();
+            console.log("Tx Settled:", receipt);
+            return { success: true, hash: tx.hash };
+        } catch (err) {
+            console.error(err);
+            setTxError(err.message || "Failed to refund Escrow deposit");
             return { success: false, error: err };
         } finally {
             setIsTxLoading(false);
@@ -106,7 +128,7 @@ export function useEscrowContract() {
                         freelancer: job.freelancer,
                         totalAmountMatic: ethers.formatEther(job.totalAmount),
                         depositedAmountMatic: ethers.formatEther(job.depositedAmount),
-                        status: Number(job.status), // 0: DRAFT, 1: ACTIVE, 2: COMPLETED, 3: DISPUTED
+                        status: Number(job.status), // 0: DRAFT, 1: ACTIVE, 2: COMPLETED, 3: DISPUTED, 4: REFUNDED
                         isEmployer: job.employer.toLowerCase() === userAddress.toLowerCase()
                     });
                 }
@@ -120,7 +142,8 @@ export function useEscrowContract() {
 
     return { 
         createEscrowJob, 
-        completeEscrowJob, 
+        completeEscrowJob,
+        refundEscrowJob,
         getUserJobs,
         isTxLoading, 
         txError 

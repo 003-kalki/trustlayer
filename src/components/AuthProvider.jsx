@@ -44,6 +44,41 @@ export const Web3AuthContext = createContext({
 
 export const useWeb3Auth = () => useContext(Web3AuthContext);
 
+// Proves wallet ownership to the API: reuses a valid session cookie, otherwise signs a server nonce.
+async function ensureApiSession(eip1193Provider) {
+    const accounts = await eip1193Provider.request({ method: "eth_accounts" });
+    const walletAddress = accounts?.[0]?.toLowerCase();
+    if (!walletAddress) {
+        throw new Error("No wallet account available");
+    }
+
+    const current = await fetch("/api/auth/session", { cache: "no-store" }).then((res) => res.json()).catch(() => null);
+    if (current?.address === walletAddress) {
+        return walletAddress;
+    }
+
+    const nonceRes = await fetch(`/api/auth/nonce?address=${walletAddress}`, { cache: "no-store" });
+    const { message, error } = await nonceRes.json();
+    if (!nonceRes.ok) {
+        throw new Error(error || "Could not start sign-in");
+    }
+
+    const signer = await new ethers.BrowserProvider(eip1193Provider).getSigner();
+    const signature = await signer.signMessage(message);
+
+    const sessionRes = await fetch("/api/auth/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ signature }),
+    });
+    if (!sessionRes.ok) {
+        const data = await sessionRes.json().catch(() => ({}));
+        throw new Error(data.error || "Wallet sign-in failed");
+    }
+
+    return walletAddress;
+}
+
 export default function AuthProvider({ children }) {
     const [provider, setProvider] = useState(null);
     const [ethersProvider, setEthersProvider] = useState(null);
@@ -61,9 +96,10 @@ export default function AuthProvider({ children }) {
                 await web3auth.initModal();
                 setProvider(web3auth.provider);
                 if (web3auth.connected && web3auth.provider) {
+                    await ensureApiSession(web3auth.provider);
                     setEthersProvider(new ethers.BrowserProvider(web3auth.provider));
+                    await getAccounts();
                     setIsConnected(true);
-                    getAccounts();
                 }
             } catch (error) {
                 console.error("Error initializing Web3Auth", error);
@@ -95,12 +131,17 @@ export default function AuthProvider({ children }) {
             }
 
             const web3authProvider = await web3auth.connect();
+            // The app counts as connected only once the API session is in place, so pages never call it unauthenticated.
+            await ensureApiSession(web3authProvider);
             setProvider(web3authProvider);
             setEthersProvider(new ethers.BrowserProvider(web3authProvider));
-            setIsConnected(true);
             await getAccounts();
+            setIsConnected(true);
         } catch (error) {
             console.error("Error logging in", error);
+            if (web3auth?.connected) {
+                await web3auth.logout().catch(() => { });
+            }
         }
     };
 
@@ -110,6 +151,7 @@ export default function AuthProvider({ children }) {
                 return;
             }
 
+            await fetch("/api/auth/session", { method: "DELETE" }).catch(() => { });
             await web3auth.logout();
             setProvider(null);
             setEthersProvider(null);

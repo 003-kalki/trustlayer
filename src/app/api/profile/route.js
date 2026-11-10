@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db, getDatabaseErrorMessage } from "@/lib/db";
+import { requireSession } from "@/lib/session";
 
 let profileColumnsPromise;
 
@@ -121,14 +122,11 @@ async function fetchUser(walletAddress) {
 
 export async function POST(req) {
   try {
-    const body = await req.json();
-    const { walletAddress } = body;
+    const session = requireSession(req);
+    if (session.response) return session.response;
 
-    if (!walletAddress) {
-      return NextResponse.json({ error: "Wallet address is required" }, { status: 400 });
-    }
-
-    const normalizedWalletAddress = walletAddress.toLowerCase();
+    // A user can only create or load their own record, whatever wallet the body names.
+    const normalizedWalletAddress = session.address;
     const userId = crypto.randomUUID();
     const profileId = crypto.randomUUID();
 
@@ -188,14 +186,13 @@ export async function GET(req) {
 
 export async function PATCH(req) {
   try {
+    const session = requireSession(req);
+    if (session.response) return session.response;
+
     const body = await req.json();
-    const { walletAddress, handle, displayName, bio, role, privacyMode } = body;
+    const { handle, displayName, bio, role, privacyMode } = body;
 
-    if (!walletAddress) {
-      return NextResponse.json({ error: "Wallet address is required" }, { status: 400 });
-    }
-
-    const normalizedWalletAddress = walletAddress.toLowerCase();
+    const normalizedWalletAddress = session.address;
     const user = await fetchUser(normalizedWalletAddress);
     const columns = await getProfileColumns();
 

@@ -27,19 +27,36 @@ const STATUS_LABELS = {
     CANCELLED: "Cancelled",
 };
 
+// Mirrors the JobStatus enum in smart_contracts/contracts/TrustLayer.sol
+const CHAIN_STATUSES = {
+    1: "ACTIVE",
+    2: "COMPLETED",
+    3: "DISPUTED",
+    4: "CANCELLED",
+};
+
 export function EscrowCard({ job, onStatusChange }) {
-    const { completeEscrowJob, isTxLoading } = useEscrowContract();
+    const { completeEscrowJob, refundEscrowJob, isTxLoading } = useEscrowContract();
     const status = typeof job.status === "number"
-        ? (job.status === 2 ? "COMPLETED" : "ACTIVE")
+        ? (CHAIN_STATUSES[job.status] || "ACTIVE")
         : (job.status || "ACTIVE");
     const isActive = status === "ACTIVE";
+    const isAwaitingRelease = isActive || status === "SUBMITTED_FOR_REVIEW";
     const isCompleted = status === "COMPLETED";
     const counterparty = job.isEmployer ? job.freelancerWalletAddress || job.freelancer : job.employerWalletAddress || job.employer;
 
     const handleReleaseFunds = async () => {
-        const res = await completeEscrowJob(job.id, job.totalAmountMatic);
+        const res = await completeEscrowJob(job.id);
         if (res.success) {
             await onStatusChange?.(job.id, "COMPLETED");
+        }
+    };
+
+    // Declining or withdrawing returns the employer's deposit on-chain before the trust record is updated.
+    const handleRefund = async (nextStatus) => {
+        const res = await refundEscrowJob(job.id);
+        if (res.success) {
+            await onStatusChange?.(job.id, nextStatus);
         }
     };
 
@@ -90,7 +107,7 @@ export function EscrowCard({ job, onStatusChange }) {
                     <span className="font-semibold text-gray-900">{job.depositedAmountMatic || job.milestoneAmount} MATIC</span>
                 </div>
                 
-                {job.isEmployer && isActive && (
+                {job.isEmployer && isAwaitingRelease && (
                     <div className="flex items-center gap-2">
                         <Button
                             onClick={() => handleStatusClick("DISPUTED")}
@@ -129,8 +146,9 @@ export function EscrowCard({ job, onStatusChange }) {
                         <Button onClick={() => handleStatusClick("ACTIVE")} size="sm">
                             Accept Contract
                         </Button>
-                        <Button onClick={() => handleStatusClick("CANCELLED")} variant="outline" size="sm">
-                            Decline
+                        <Button onClick={() => handleRefund("CANCELLED")} disabled={isTxLoading} variant="outline" size="sm">
+                            {isTxLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                            Decline &amp; Refund
                         </Button>
                     </div>
                 )}
@@ -140,6 +158,10 @@ export function EscrowCard({ job, onStatusChange }) {
                         <Button onClick={() => handleStatusClick("SUBMITTED_FOR_REVIEW")} variant="outline" size="sm">
                             Submit for Review
                         </Button>
+                        <Button onClick={() => handleRefund("ABANDONED_BY_FREELANCER")} disabled={isTxLoading} variant="outline" size="sm">
+                            {isTxLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+                            Withdraw &amp; Refund
+                        </Button>
                         <Button onClick={() => handleStatusClick("ABANDONED_BY_EMPLOYER")} variant="outline" size="sm">
                             <AlertTriangle className="h-4 w-4 mr-2" />
                             Report Employer Abandonment
@@ -148,8 +170,14 @@ export function EscrowCard({ job, onStatusChange }) {
                 )}
 
                 {!job.isEmployer && status === "SUBMITTED_FOR_REVIEW" && (
-                    <div className="text-sm font-medium bg-amber-50 text-amber-700 px-3 py-1.5 rounded-md flex items-center gap-2 border border-amber-100">
-                        <Loader2 className="h-3.5 w-3.5 animate-spin"/> Awaiting Employer Approval
+                    <div className="flex items-center gap-2">
+                        <div className="text-sm font-medium bg-amber-50 text-amber-700 px-3 py-1.5 rounded-md flex items-center gap-2 border border-amber-100">
+                            <Loader2 className="h-3.5 w-3.5 animate-spin"/> Awaiting Employer Approval
+                        </div>
+                        <Button onClick={() => handleStatusClick("ABANDONED_BY_EMPLOYER")} variant="outline" size="sm">
+                            <AlertTriangle className="h-4 w-4 mr-2" />
+                            Report Employer Abandonment
+                        </Button>
                     </div>
                 )}
                 

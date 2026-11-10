@@ -1,10 +1,14 @@
 import { ReclaimProofRequest } from '@reclaimprotocol/js-sdk';
 import { NextResponse } from 'next/server';
+import { requireSession } from '@/lib/session';
 
 const DEFAULT_GITHUB_PROVIDER_ID = '8573efb4-4529-47d3-80da-eaa7384dac19';
 
 export async function POST(req) {
     try {
+        const session = requireSession(req);
+        if (session.response) return session.response;
+
         const { providerId, username } = await req.json();
         
         const APP_ID = process.env.APPLICATION_ID;

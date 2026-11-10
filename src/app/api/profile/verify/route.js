@@ -1,16 +1,16 @@
 import { NextResponse } from "next/server";
 import { verifyProof } from "@reclaimprotocol/js-sdk";
 import { db, getDatabaseErrorMessage } from "@/lib/db";
+import { requireSession } from "@/lib/session";
 
 export async function POST(req) {
   try {
-    const { walletAddress, type, proofs } = await req.json();
+    const session = requireSession(req);
+    if (session.response) return session.response;
 
-    if (!walletAddress) {
-      return NextResponse.json({ error: "Wallet address is required" }, { status: 400 });
-    }
+    const { type, proofs } = await req.json();
 
-    const normalizedWalletAddress = walletAddress.toLowerCase();
+    const normalizedWalletAddress = session.address;
     const [userRows] = await db.query(
       "SELECT id FROM `user` WHERE walletAddress = ? LIMIT 1",
       [normalizedWalletAddress]

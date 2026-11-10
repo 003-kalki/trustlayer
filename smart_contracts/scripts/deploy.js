@@ -9,8 +9,7 @@ async function main() {
 
   let rawKey = process.env.PRIVATE_KEY;
   if (!rawKey) {
-      // Fallback check if it was pasted with quotes vs without
-      rawKey = "a22ea0c04f669f2fa9e651c56041c5cb76ec89eb0ea3024c2254f826db8a601c"; 
+      throw new Error("PRIVATE_KEY is not set. Add the deployer key to .env.local in the project root.");
   }
   // Strip extraneous quotes if they exist from dotenv parsing
   rawKey = rawKey.replace(/^"|'|"$|'/g, '');
