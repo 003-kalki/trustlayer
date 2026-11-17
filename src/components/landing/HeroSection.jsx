@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { ArrowRight, Lock } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 const HeroSection = () => {
@@ -57,8 +58,8 @@ const HeroSection = () => {
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </Button>
 
-            <Button size="lg" variant="outline" className="border-border px-8 text-foreground hover:bg-secondary">
-              View Demo
+            <Button asChild size="lg" variant="outline" className="border-border px-8 text-foreground hover:bg-secondary">
+              <Link href="/demo">View Demo</Link>
             </Button>
           </motion.div>
 

@@ -35,7 +35,8 @@ const CHAIN_STATUSES = {
     4: "CANCELLED",
 };
 
-export function EscrowCard({ job, onStatusChange }) {
+// demoMode skips the wallet and blockchain so /demo can walk through the flow with sample data.
+export function EscrowCard({ job, onStatusChange, demoMode = false }) {
     const { completeEscrowJob, refundEscrowJob, isTxLoading } = useEscrowContract();
     const status = typeof job.status === "number"
         ? (CHAIN_STATUSES[job.status] || "ACTIVE")
@@ -46,6 +47,7 @@ export function EscrowCard({ job, onStatusChange }) {
     const counterparty = job.isEmployer ? job.freelancerWalletAddress || job.freelancer : job.employerWalletAddress || job.employer;
 
     const handleReleaseFunds = async () => {
+        if (demoMode) return onStatusChange?.(job.id, "COMPLETED");
         const res = await completeEscrowJob(job.id);
         if (res.success) {
             await onStatusChange?.(job.id, "COMPLETED");
@@ -54,6 +56,7 @@ export function EscrowCard({ job, onStatusChange }) {
 
     // Declining or withdrawing returns the employer's deposit on-chain before the trust record is updated.
     const handleRefund = async (nextStatus) => {
+        if (demoMode) return onStatusChange?.(job.id, nextStatus);
         const res = await refundEscrowJob(job.id);
         if (res.success) {
             await onStatusChange?.(job.id, nextStatus);
@@ -66,8 +69,8 @@ export function EscrowCard({ job, onStatusChange }) {
 
     return (
         <div className="bg-white border rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow duration-200">
-            <div className="flex justify-between items-start mb-4">
-                <div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start mb-4">
+                <div className="min-w-0">
                     <div className="flex items-center gap-2 mb-2">
                         <span className="text-xs font-mono bg-gray-100 px-2 py-0.5 rounded text-gray-500">ID: #{job.id}</span>
                         <Badge variant="outline" className={STATUS_STYLES[status] || STATUS_STYLES.ACTIVE}>
@@ -81,7 +84,7 @@ export function EscrowCard({ job, onStatusChange }) {
 
                     <h3 className="font-semibold text-gray-700 mt-1.5 text-sm">
                         {job.isEmployer ? "Hiring: " : "Working for: "} 
-                        <span className="font-mono text-sm ml-1 text-gray-500 bg-gray-50 border px-2 py-0.5 rounded inline-block">
+                        <span className="font-mono text-sm ml-1 text-gray-500 bg-gray-50 border px-2 py-0.5 rounded inline-block break-all">
                             {counterparty}
                         </span>
                     </h3>
@@ -95,20 +98,20 @@ export function EscrowCard({ job, onStatusChange }) {
                         </p>
                     )}
                 </div>
-                <div className="text-right">
+                <div className="sm:text-right shrink-0">
                     <p className="text-xs text-gray-500 mb-1 uppercase tracking-wider font-semibold">Total Value</p>
                     <p className="font-bold text-xl font-display">{job.totalAmountMatic || job.totalAmount} MATIC</p>
                 </div>
             </div>
 
-            <div className="border-t pt-4 mt-2 flex items-center justify-between">
+            <div className="border-t pt-4 mt-2 flex flex-wrap items-center justify-between gap-3">
                 <div className="text-sm text-gray-600 flex flex-col">
                     <span className="text-xs text-gray-400 mb-0.5">Currently Locked in Escrow</span> 
                     <span className="font-semibold text-gray-900">{job.depositedAmountMatic || job.milestoneAmount} MATIC</span>
                 </div>
                 
                 {job.isEmployer && isAwaitingRelease && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                         <Button
                             onClick={() => handleStatusClick("DISPUTED")}
                             variant="outline"
@@ -130,7 +133,7 @@ export function EscrowCard({ job, onStatusChange }) {
                 )}
 
                 {job.isEmployer && status === "FUNDED" && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                         <div className="text-sm font-medium bg-blue-50 text-blue-700 px-3 py-1.5 rounded-md flex items-center gap-2 border border-blue-100">
                             <Clock3 className="h-3.5 w-3.5" /> Awaiting Freelancer Acceptance
                         </div>
@@ -142,7 +145,7 @@ export function EscrowCard({ job, onStatusChange }) {
                 )}
 
                 {!job.isEmployer && status === "FUNDED" && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                         <Button onClick={() => handleStatusClick("ACTIVE")} size="sm">
                             Accept Contract
                         </Button>
@@ -154,7 +157,7 @@ export function EscrowCard({ job, onStatusChange }) {
                 )}
                 
                 {!job.isEmployer && isActive && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                         <Button onClick={() => handleStatusClick("SUBMITTED_FOR_REVIEW")} variant="outline" size="sm">
                             Submit for Review
                         </Button>
@@ -170,7 +173,7 @@ export function EscrowCard({ job, onStatusChange }) {
                 )}
 
                 {!job.isEmployer && status === "SUBMITTED_FOR_REVIEW" && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                         <div className="text-sm font-medium bg-amber-50 text-amber-700 px-3 py-1.5 rounded-md flex items-center gap-2 border border-amber-100">
                             <Loader2 className="h-3.5 w-3.5 animate-spin"/> Awaiting Employer Approval
                         </div>

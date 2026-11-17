@@ -43,7 +43,7 @@ const Navbar = () => {
       transition={{ duration: 0.4, ease: "easeOut" }}
       className="fixed top-0 left-0 right-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl"
     >
-      <div className="container mx-auto flex h-16 items-center justify-between px-6">
+      <div className="container mx-auto flex h-16 items-center justify-between gap-2 px-4 sm:px-6">
         <div className="flex items-center gap-2">
           <Shield className="h-7 w-7 text-primary" />
           <span className="font-display text-xl font-bold text-foreground">
@@ -52,6 +52,7 @@ const Navbar = () => {
         </div>
 
         <div className="hidden items-center gap-8 md:flex md:mr-4">
+          <Link href="/demo" className="text-sm text-muted-foreground transition-colors hover:text-primary">Live Demo</Link>
           <Link href="/how-it-works" className="text-sm text-muted-foreground transition-colors hover:text-primary">How It Works</Link>
           <Link href="/#features" className="text-sm text-muted-foreground transition-colors hover:text-primary">Features</Link>
           <Link href="/#roadmap" className="text-sm text-muted-foreground transition-colors hover:text-primary">Roadmap</Link>
@@ -84,7 +85,7 @@ const Navbar = () => {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-muted-foreground hover:text-foreground"
+                  className="hidden text-muted-foreground hover:text-foreground sm:inline-flex"
                 >
                   Log In
                 </Button>
