@@ -12,11 +12,18 @@ function createPool() {
   return mysql.createPool(connectionString);
 }
 
-export const db = globalForDb.dbPool || createPool();
-
-if (process.env.NODE_ENV !== "production") {
-  globalForDb.dbPool = db;
+function getPool() {
+  if (!globalForDb.dbPool) {
+    globalForDb.dbPool = createPool();
+  }
+  return globalForDb.dbPool;
 }
+
+// The pool is created on first query, not at import, so builds and pages that never touch
+// the database still work when DATABASE_URL is missing (e.g. a frontend-only deployment).
+export const db = {
+  query: (...args) => getPool().query(...args),
+};
 
 export function getDatabaseErrorMessage(error) {
   if (!error) {
