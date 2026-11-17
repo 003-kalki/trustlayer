@@ -11,7 +11,7 @@
 ## Required production setup
 
 1. Provision a MySQL or MariaDB database.
-2. Set `DATABASE_URL` in the hosting provider.
+2. Set `DATABASE_URL` in the hosting provider. For a hosted database that requires TLS, append `?ssl={"rejectUnauthorized":true}` to the URL; both the app and `npm run db:bootstrap` read it.
 3. Run the database bootstrap command against the production database:
 
 ```bash

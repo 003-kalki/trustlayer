@@ -57,6 +57,12 @@ const connectionOptions = {
   multipleStatements: false,
 };
 
+// Hosted MySQL providers require TLS. Accept the same ?ssl={...} JSON param that mysql2 reads in src/lib/db.js.
+const sslParam = databaseUrl.searchParams.get("ssl");
+if (sslParam) {
+  connectionOptions.ssl = JSON.parse(sslParam);
+}
+
 const db = await mysql.createConnection(connectionOptions);
 await db.query(`CREATE DATABASE IF NOT EXISTS \`${databaseName}\``);
 await db.changeUser({ database: databaseName });
